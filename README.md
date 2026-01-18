@@ -145,11 +145,13 @@ The app will open at `http://localhost:8501`
 | String Matching | RapidFuzz |
 | Statistical Analysis | SciPy |
 
-## Data Requirements
+## Data
 
-The system expects processed Aadhaar data in Parquet format under `data_cache/`. On first run, maps are auto-generated from:
-- District-level NASRI scores
-- GeoJSON boundaries for Indian districts
+✅ **All required data is included in this repository** - no additional downloads needed!
+
+- `dataset/processed/` - Pre-computed NASRI/ASRS scores and features
+- `data_cache/india_districts.geojson` - District boundaries (594 districts)
+- Maps are auto-generated on first run
 
 See [`dataset/README.md`](dataset/README.md) for data format specifications.
 

@@ -2,11 +2,13 @@
 
 This directory contains processed data files required by the ASEWIS application.
 
+✅ **All processed data is included** - the dashboard works out-of-the-box!
+
 ## Structure
 
 ```
 dataset/
-├── processed/           # Pre-processed parquet files (required at runtime)
+├── processed/           # ✅ INCLUDED - Pre-processed parquet files
 │   ├── aggregated_metrics.parquet
 │   ├── anomalies.parquet
 │   ├── features.parquet
@@ -15,9 +17,9 @@ dataset/
 └── external/            # External reference data
 ```
 
-## Regenerating Raw Data
+## Regenerating Raw Data (Optional)
 
-The raw data files (`dataset/raw/` and `dataset/api_data_*/`) are not included in this repository to minimize size. To regenerate them:
+The raw data files (`dataset/raw/` and `dataset/api_data_*/`) are not included. To regenerate from fresh data:
 
 ### 1. Download Raw Aadhar Data
 
