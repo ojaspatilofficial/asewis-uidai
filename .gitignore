@@ -43,28 +43,24 @@ logs/
 *.log
 
 # ==============================================================================
-# Data & Cache - EXCLUDED (large files, can be regenerated)
+# Data & Cache - INCLUDED FOR HACKATHON SUBMISSION
 # ==============================================================================
 
-# Entire data_cache directory (generated at runtime)
-data_cache/
-
-# Local backup (development artifacts)
+# Local backup (development artifacts) - EXCLUDE
 _local_backup/
 
-# Processed datasets (generated from raw data)
-dataset/processed/
-
-# Raw datasets (download from external source)
+# Raw datasets (download from external source) - EXCLUDE
 dataset/raw/
 dataset/api_data_*/
 
-# Large data files (regardless of location)
-*.geojson
-*.parquet
-*.csv
-*.xlsx
-*.xls
+# Pre-built maps cache (generated at runtime) - EXCLUDE
+data_cache/maps/
+data_cache/temp/
+data_cache/models/
+data_cache/embeddings/
+
+# NOTE: dataset/processed/ and data_cache/*.parquet are INCLUDED for submission
+# NOTE: data_cache/india_districts.geojson is INCLUDED for submission
 
 # ==============================================================================
 # Development artifacts - EXCLUDED
