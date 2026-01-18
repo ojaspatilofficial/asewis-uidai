@@ -92,14 +92,85 @@ asewis/
 - **Data Processing Separation**: Independent data pipelines
 - **Intelligence Layer**: Isolated ML/Analytics components
 
-## Setup
+## Key Features
 
-(Setup instructions to be added)
+- **NASRI Dashboard** - National Aadhaar Service Readiness Index (0-100 score) visualization
+- **ASRS Analytics** - Aadhaar Service Risk Score (0-1) for identifying at-risk districts
+- **Interactive Choropleth Maps** - District-level visualization across 594 Indian districts
+- **AI-Powered Recommendations** - Actionable insights for improving district performance
+- **Forecasting Engine** - Predict future trends using statistical models
+- **Anomaly Detection** - Flag unusual patterns in service delivery
 
-## Usage
+## Quick Start
 
-(Usage instructions to be added)
+### Prerequisites
+- Python 3.9+ (3.10 or 3.11 recommended)
+- pip package manager
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/ojaspatilofficial/asewis-uidai.git
+cd asewis-uidai
+
+# Create virtual environment
+python -m venv venv
+
+# Activate (Windows PowerShell)
+.\venv\Scripts\Activate.ps1
+
+# Activate (macOS/Linux)
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### Run the Dashboard
+
+```bash
+streamlit run app/streamlit_app.py
+```
+
+The app will open at `http://localhost:8501`
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Frontend | Streamlit |
+| Visualization | Plotly, Matplotlib |
+| Data Processing | Pandas, NumPy, PyArrow |
+| String Matching | RapidFuzz |
+| Statistical Analysis | SciPy |
+
+## Data Requirements
+
+The system expects processed Aadhaar data in Parquet format under `data_cache/`. On first run, maps are auto-generated from:
+- District-level NASRI scores
+- GeoJSON boundaries for Indian districts
+
+See [`dataset/README.md`](dataset/README.md) for data format specifications.
+
+## Screenshots
+
+*Dashboard with NASRI choropleth map showing district-level readiness scores*
+
+## Documentation
+
+- [SETUP.md](SETUP.md) - Detailed setup instructions for all platforms
+- [docs/MAP_OPTIMIZATION.md](docs/MAP_OPTIMIZATION.md) - Map performance optimizations
+- [docs/LOCATION_CLEANER_GUIDE.md](docs/LOCATION_CLEANER_GUIDE.md) - Data cleaning documentation
+
+## Project Team
+
+**UIDAI Hackathon 2026**
 
 ## License
 
-(License information to be added)
+MIT License - See [LICENSE](LICENSE) for details.
+
+---
+
+*Built for UIDAI Hackathon 2026* 🇮🇳
