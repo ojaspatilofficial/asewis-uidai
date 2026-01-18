@@ -25,9 +25,10 @@ import plotly.graph_objects as go
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from scoring import compute_nasri, compute_asrs
+from scoring import compute_nasri, compute_asrs, DEFAULT_NASRI_WEIGHTS, DEFAULT_ASRS_WEIGHTS
 from rules_engine import recommend_actions
 from simulation import simulate_impact
+from forecasting import forecast_demand
 from data_cleaning.location_cleaner import clean_location_columns
 from geo_utils import (
     load_india_districts_geojson,
@@ -153,6 +154,27 @@ def load_scores_data() -> Optional[pd.DataFrame]:
     except Exception as e:
         logger.error(f"Error loading scores data: {e}")
         return None
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def get_recommendation_counts_for_latest(df_latest: pd.DataFrame) -> Dict[str, int]:
+    """
+    Compute number of recommendations per district for latest-month rows.
+
+    Returns a dict: district -> count of recommend_actions.
+    """
+    counts: Dict[str, int] = {}
+    if df_latest is None or df_latest.empty:
+        return counts
+    for _, row in df_latest.iterrows():
+        district_name = row.get('district', 'Unknown')
+        try:
+            recs = recommend_actions(row, max_recommendations=5)
+            counts[district_name] = len(recs)
+        except Exception as e:
+            logger.warning(f"Recommendation count error for {district_name}: {e}")
+            counts[district_name] = 0
+    return counts
 
 
 def get_latest_month_data(df: pd.DataFrame) -> pd.DataFrame:
@@ -943,6 +965,103 @@ python scoring.py
         })
         
         st.dataframe(metrics_df, use_container_width=True, hide_index=True)
+
+        # Index Weights & Contributions (NASRI & ASRS)
+        st.subheader("⚖️ Index Weights & Contributions")
+
+        if features_df is not None:
+            try:
+                latest_features = get_latest_month_data(features_df)
+                district_features = latest_features[latest_features['district'] == selected_district]
+
+                if district_features.empty:
+                    st.info("Feature data not available for this district in the latest month.")
+                else:
+                    # Compute component scores using scoring module
+                    nasri_calc = compute_nasri(district_features.copy())
+                    asrs_calc = compute_asrs(nasri_calc.copy())
+
+                    # Extract component values (0-1 scale for NASRI components)
+                    nasri_components_map = [
+                        ("Completion Ratio", "nasri_completion", "completion_ratio"),
+                        ("Capacity Utilization", "nasri_capacity", "capacity_utilization"),
+                        ("Stability", "nasri_stability", "stability_score"),
+                        ("Demand Velocity", "nasri_velocity", "demand_velocity"),
+                        ("Compliance Debt", "nasri_compliance", "compliance_debt")
+                    ]
+                    nasri_rows = []
+                    for name, col, weight_key in nasri_components_map:
+                        comp_val = float(asrs_calc.iloc[0].get(col, 0))
+                        weight = float(DEFAULT_NASRI_WEIGHTS.get(weight_key, 0))
+                        contribution_pts = comp_val * weight * 100.0
+                        nasri_rows.append({
+                            "Component": name,
+                            "Weight": weight,
+                            "Component Score": comp_val,
+                            "Contribution (pts)": contribution_pts
+                        })
+
+                    nasri_table = pd.DataFrame(nasri_rows)
+
+                    # ASRS components (risk contributions)
+                    asrs_components_map = [
+                        ("Capacity Stress", "asrs_capacity_stress", "capacity_stress"),
+                        ("Instability", "asrs_instability", "instability"),
+                        ("Compliance Gap", "asrs_compliance_gap", "compliance_gap"),
+                        ("Negative Velocity", "asrs_negative_velocity", "negative_velocity")
+                    ]
+                    asrs_rows = []
+                    for name, col, weight_key in asrs_components_map:
+                        comp_val = float(asrs_calc.iloc[0].get(col, 0))
+                        weight = float(DEFAULT_ASRS_WEIGHTS.get(weight_key, 0))
+                        contribution_prob = comp_val * weight
+                        asrs_rows.append({
+                            "Component": name,
+                            "Weight": weight,
+                            "Risk Component": comp_val,
+                            "Contribution (prob)": contribution_prob
+                        })
+
+                    asrs_table = pd.DataFrame(asrs_rows)
+
+                    tab_nasri, tab_asrs = st.tabs(["NASRI Weights", "ASRS Weights"])
+
+                    with tab_nasri:
+                        st.markdown("**NASRI Components and Weights**")
+                        st.dataframe(
+                            nasri_table,
+                            column_config={
+                                'Component': st.column_config.TextColumn('Component'),
+                                'Weight': st.column_config.NumberColumn('Weight', format='%.2f'),
+                                'Component Score': st.column_config.NumberColumn('Component Score', format='%.2f'),
+                                'Contribution (pts)': st.column_config.NumberColumn('Contribution (pts)', format='%.1f'),
+                            },
+                            use_container_width=True,
+                            hide_index=True
+                        )
+                        # Bar chart of NASRI contributions (points)
+                        chart_df = nasri_table.set_index('Component')[["Contribution (pts)"]]
+                        st.bar_chart(chart_df, use_container_width=True)
+
+                    with tab_asrs:
+                        st.markdown("**ASRS Components and Weights**")
+                        st.dataframe(
+                            asrs_table,
+                            column_config={
+                                'Component': st.column_config.TextColumn('Component'),
+                                'Weight': st.column_config.NumberColumn('Weight', format='%.2f'),
+                                'Risk Component': st.column_config.NumberColumn('Risk Component', format='%.2f'),
+                                'Contribution (prob)': st.column_config.NumberColumn('Contribution (prob)', format='%.3f'),
+                            },
+                            use_container_width=True,
+                            hide_index=True
+                        )
+                        # Bar chart of ASRS contributions (probability)
+                        chart_df2 = asrs_table.set_index('Component')[["Contribution (prob)"]]
+                        st.bar_chart(chart_df2, use_container_width=True)
+            except Exception as e:
+                st.error(f"Weights breakdown error: {e}")
+                logger.error(f"Weights breakdown error: {e}", exc_info=True)
     
     # ========================================
     # Section 5: Trends Over Time
@@ -1124,10 +1243,13 @@ def render_orchestration_panel():
     # ========================================
     st.header("💡 Intervention Recommendations")
     
+    # Show recommendation counts next to district names
+    rec_counts = get_recommendation_counts_for_latest(latest_scores)
     selected_district = st.selectbox(
         "Select District for Recommendations",
         options=sorted(latest_scores['district'].unique()),
-        key='orchestration_district'
+        key='orchestration_district',
+        format_func=lambda d: f"{d} ({rec_counts.get(d, 0)})"
     )
     
     if selected_district:
@@ -1313,7 +1435,78 @@ def render_orchestration_panel():
             logger.error(f"Recommendation error: {e}", exc_info=True)
     
     # ========================================
-    # Section 3: Batch Operations
+    # Section 3: Demand Forecast (30/60/90 days)
+    # ========================================
+    st.header("🔮 Demand Forecast (30/60/90 days)")
+
+    aggregated_df = load_aggregated_data()
+    if aggregated_df is None:
+        st.info("Aggregated demand data not available. Run the pipeline to populate `dataset/processed/aggregated_metrics.parquet`.")
+    else:
+        if selected_district:
+            try:
+                # Filter district history
+                district_history = aggregated_df[aggregated_df['district'].str.lower() == selected_district.lower()].copy()
+                if district_history.empty:
+                    st.info("No historical demand found for the selected district.")
+                else:
+                    # Identify time column and sort
+                    date_col = 'date' if 'date' in district_history.columns else 'month' if 'month' in district_history.columns else None
+                    if date_col:
+                        district_history[date_col] = pd.to_datetime(district_history[date_col], errors='coerce')
+                        district_history = district_history.dropna(subset=[date_col]).sort_values(date_col)
+
+                    # Generate forecasts
+                    horizons = [30, 60, 90]
+                    forecast_result = forecast_demand(
+                        district_history,
+                        forecast_horizons=horizons,
+                        confidence_level=0.95,
+                        auto_select_method=True
+                    )
+
+                    if 'error' in forecast_result and forecast_result['error']:
+                        st.warning(f"Forecasting unavailable: {forecast_result['error']}")
+                    else:
+                        # Summary metrics for horizons
+                        col1, col2, col3 = st.columns(3)
+                        for i, h in enumerate(horizons):
+                            f = forecast_result['forecasts'].get(h, {})
+                            with (col1 if i == 0 else col2 if i == 1 else col3):
+                                st.metric(f"{h}-Day Demand", f"{f.get('point', 0):.0f}")
+                                st.caption(f"CI95: {f.get('lower', 0):.0f} – {f.get('upper', 0):.0f}")
+
+                        # Trajectory chart: last 12 months + forecast markers
+                        demand_cols = [c for c in district_history.columns if 'count' in c.lower()]
+                        demand_col = demand_cols[0] if demand_cols else None
+                        if demand_col:
+                            history_series = district_history[demand_col].tail(12).reset_index(drop=True)
+                            periods = list(range(len(history_series)))
+                            hist_vals = list(history_series.values)
+                            forecast_periods = [len(history_series) + h - 1 for h in horizons]
+                            forecast_vals = [forecast_result['forecasts'][h]['point'] for h in horizons]
+
+                            chart_df = pd.DataFrame({
+                                'Period': periods + forecast_periods,
+                                'Historical': hist_vals + [None] * len(forecast_periods),
+                                'Forecast': [None] * len(periods) + forecast_vals
+                            }).set_index('Period')
+
+                            st.line_chart(chart_df, use_container_width=True)
+
+                        # Method and stats
+                        st.caption(
+                            f"Method: {forecast_result.get('method', 'exponential_smoothing')} · "
+                            f"Data points used: {forecast_result.get('data_points_used', 0)} · "
+                            f"Historical mean: {forecast_result.get('historical_stats', {}).get('mean', 'N/A'):.1f} · "
+                            f"Std: {forecast_result.get('historical_stats', {}).get('std', 'N/A'):.1f}"
+                        )
+            except Exception as e:
+                st.error(f"Forecasting error: {e}")
+                logger.error(f"Forecasting error: {e}", exc_info=True)
+
+    # ========================================
+    # Section 4: Batch Operations
     # ========================================
     st.header("⚙️ Batch Operations")
     
