@@ -1,0 +1,90 @@
+# ==============================================================================
+# ASEWIS - Git Ignore Configuration
+# ==============================================================================
+
+# Python bytecode and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-*
+
+# Logs
+logs/
+*.log
+
+# ==============================================================================
+# Data & Cache - EXCLUDED (large files, can be regenerated)
+# ==============================================================================
+
+# Entire data_cache directory (generated at runtime)
+data_cache/
+
+# Local backup (development artifacts)
+_local_backup/
+
+# Processed datasets (generated from raw data)
+dataset/processed/
+
+# Raw datasets (download from external source)
+dataset/raw/
+dataset/api_data_*/
+
+# Large data files (regardless of location)
+*.geojson
+*.parquet
+*.csv
+*.xlsx
+*.xls
+
+# ==============================================================================
+# Development artifacts - EXCLUDED
+# ==============================================================================
+
+# Archive and notebooks
+_archive/
+notebooks/
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Pytest cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Streamlit secrets (contains sensitive data)
+.streamlit/secrets.toml
